@@ -28,7 +28,7 @@ class WorkerSignals(QObject):
     error = pyqtSignal(tuple) #receives a tuple of Exception type, Exception value and formatted traceback
     result = pyqtSignal(object) #receiving any object type from the executed function
     progress = pyqtSignal(int)
-    change_pixmap_signal = pyqtSignal(np.ndarray)
+    change_pixmap_signal = pyqtSignal(object) #(np.ndarray)
 
 
 class Worker(QRunnable):
@@ -114,27 +114,34 @@ class MainWindow(QMainWindow):
         ###########################################################
         ###########################################################
         #GUI configuration
-        self.disply_width = 1000
-        self.display_height = 700
+        self.disply_width = 500
+        self.display_height = 350
         self.setWindowTitle("Qt live label demo")
-        self.central_widget = QWidget()
-        self.layout = QVBoxLayout(self.central_widget)
 
-        self.image_label = QLabel("Record demo")
-        self.image_label.resize(self.disply_width, self.display_height)
+        self.layout_base = QVBoxLayout()
+        self.layout_h = QHBoxLayout()
+        self.camera1 = QLabel("webcam1")
+        self.camera2 = QLabel("webcam2")
+
         start_b = QPushButton("Start Video")
-        start_b.pressed.connect(self.start_record)
         stop_b = QPushButton("Stop Video")
+        start_b.pressed.connect(self.start_record)
         stop_b.pressed.connect(self.stop_record)
 
-        self.layout.addWidget(self.image_label)
-        self.layout.addWidget(start_b)
-        self.layout.addWidget(stop_b)
+        self.layout_h.addWidget(self.camera1)
+        self.layout_h.addWidget(self.camera2)
 
-        self.image_view = None
+        self.layout_base.addWidget( start_b )
+        self.layout_base.addWidget( stop_b )
+        self.layout_base.addLayout(self.layout_h)
+        self.layout_h.setSpacing(15)
 
+        self.widget = QWidget()
+        self.widget.setLayout(self.layout_base)
+        self.setCentralWidget(self.widget)
 
-        self.setCentralWidget(self.central_widget)
+        self.camera1.resize(self.disply_width, self.display_height)
+        self.camera2.resize(self.disply_width, self.display_height)
 
         self.show()
 
@@ -169,13 +176,10 @@ class MainWindow(QMainWindow):
             (self.success2, self.frame2) = self.stream2.read()
             self.fps.update()
             if self.success:
-                self.worker.signals.change_pixmap_signal.emit(self.frame)
                 self.writer.write(self.frame)
             if self.success2:
-                self.worker.signals.change_pixmap_signal.emit(self.frame2)
                 self.writer2.write(self.frame2)
-            # gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-            # cv2.imshow("Frame", gray)
+            self.worker.signals.change_pixmap_signal.emit([self.frame, self.frame2])
 
     def print_output(self, s):
         print("output", s)
@@ -195,8 +199,10 @@ class MainWindow(QMainWindow):
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
-        qt_img = self.convert_cv_qt(cv_img)
-        self.image_label.setPixmap(qt_img)
+        qt_img = self.convert_cv_qt(cv_img[0])
+        qt_img2 = self.convert_cv_qt(cv_img[1])
+        self.camera1.setPixmap(qt_img)
+        self.camera2.setPixmap(qt_img2)
 
 
     def execute_thread(self):
@@ -233,11 +239,6 @@ class MainWindow(QMainWindow):
 
     def recurring_timer(self):
         self.counter +=1
-        self.image_label.setText("Counter: %d" % self.counter)
-
-
-
-
 
 app = QApplication([])
 sp = '/home/strandquistg/repos/aDBS/preliminary/vid_files/'
