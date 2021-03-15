@@ -209,5 +209,6 @@ class MainWindow(QMainWindow):
 
 app = QApplication([])
 sp = '/home/strandquistg/repos/aDBS/preliminary/vid_files/'
+print("testing gitignore")
 window = MainWindow(sp, 1, 7)
 app.exec_()
