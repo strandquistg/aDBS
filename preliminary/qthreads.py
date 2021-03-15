@@ -3,7 +3,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from FPS import *
-
+from pyqtgraph import ImageView
 import time, cv2
 import traceback, sys
 
@@ -28,6 +28,7 @@ class WorkerSignals(QObject):
     error = pyqtSignal(tuple) #receives a tuple of Exception type, Exception value and formatted traceback
     result = pyqtSignal(object) #receiving any object type from the executed function
     progress = pyqtSignal(int)
+    change_pixmap_signal = pyqtSignal(np.ndarray)
 
 
 class Worker(QRunnable):
@@ -44,6 +45,7 @@ class Worker(QRunnable):
     def __init__(self):
         super(Worker, self).__init__()
         self.record_loop = True
+        self.signals = WorkerSignals()
 
     def begin_job(self, fn, *args, **kwargs):
         # Store constructor arguments (re-used for processing)
@@ -51,7 +53,7 @@ class Worker(QRunnable):
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
-        self.signals = WorkerSignals()
+
         # Add the callback to our kwargs
         #self.kwargs['progress_callback'] = self.signals.progress
 
@@ -81,13 +83,18 @@ class Worker(QRunnable):
     def open_record_loop(self):
         self.record_loop = True
 
-
-
 class MainWindow(QMainWindow):
-
+    ###########################################################
+    ###########################################################
+    ###########################################################
+    #Constructor
     def __init__(self, vid_path, src=0, src2=1, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
+        ###########################################################
+        ###########################################################
+        ###########################################################
+        #Camera params
         self.counter = 0
         self.fps = FPS()
         self.sp = vid_path
@@ -103,22 +110,31 @@ class MainWindow(QMainWindow):
         self.cam_ind2 = src2
         self.stopped = False
 
-        layout = QVBoxLayout()
+        ###########################################################
+        ###########################################################
+        ###########################################################
+        #GUI configuration
+        self.disply_width = 1000
+        self.display_height = 700
+        self.setWindowTitle("Qt live label demo")
+        self.central_widget = QWidget()
+        self.layout = QVBoxLayout(self.central_widget)
 
-        self.l = QLabel("Record demo")
+        self.image_label = QLabel("Record demo")
+        self.image_label.resize(self.disply_width, self.display_height)
         start_b = QPushButton("Start Video")
         start_b.pressed.connect(self.start_record)
         stop_b = QPushButton("Stop Video")
         stop_b.pressed.connect(self.stop_record)
 
-        layout.addWidget(self.l)
-        layout.addWidget(start_b)
-        layout.addWidget(stop_b)
+        self.layout.addWidget(self.image_label)
+        self.layout.addWidget(start_b)
+        self.layout.addWidget(stop_b)
 
-        w = QWidget()
-        w.setLayout(layout)
+        self.image_view = None
 
-        self.setCentralWidget(w)
+
+        self.setCentralWidget(self.central_widget)
 
         self.show()
 
@@ -135,11 +151,6 @@ class MainWindow(QMainWindow):
 
     def progress_fn(self, n):
         print("%d%% done" % n)
-
-    def show_frame(self):
-        print("reading func!!!!")
-        # return the frame most recently read
-        return self.frame
 
     def thread_fc(self):
         while True:
@@ -158,8 +169,10 @@ class MainWindow(QMainWindow):
             (self.success2, self.frame2) = self.stream2.read()
             self.fps.update()
             if self.success:
+                self.worker.signals.change_pixmap_signal.emit(self.frame)
                 self.writer.write(self.frame)
             if self.success2:
+                self.worker.signals.change_pixmap_signal.emit(self.frame2)
                 self.writer2.write(self.frame2)
             # gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
             # cv2.imshow("Frame", gray)
@@ -170,9 +183,26 @@ class MainWindow(QMainWindow):
     def thread_complete(self):
         print("Thread complete")
 
+    def convert_cv_qt(self, cv_img):
+        """Convert from an opencv image to QPixmap"""
+        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
+
+    @pyqtSlot(np.ndarray)
+    def update_image(self, cv_img):
+        """Updates the image_label with a new opencv image"""
+        qt_img = self.convert_cv_qt(cv_img)
+        self.image_label.setPixmap(qt_img)
+
+
     def execute_thread(self):
         # Pass the function to execute
         self.worker.begin_job(self.thread_fc) # Any other args, kwargs are passed to the run function
+        self.worker.signals.change_pixmap_signal.connect(self.update_image)
         self.worker.signals.result.connect(self.print_output)
         self.worker.signals.finished.connect(self.thread_complete)
         self.worker.signals.progress.connect(self.progress_fn)
@@ -203,7 +233,9 @@ class MainWindow(QMainWindow):
 
     def recurring_timer(self):
         self.counter +=1
-        self.l.setText("Counter: %d" % self.counter)
+        self.image_label.setText("Counter: %d" % self.counter)
+
+
 
 
 

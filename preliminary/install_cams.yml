@@ -5,7 +5,7 @@ channels:
   - defaults
 dependencies:
   - blas=1.0=mkl
-  - ca-certificates=2020.10.14=0
+  - ca-certificates=2021.1.19=h06a4308_1
   - certifi=2020.12.5=py39h06a4308_0
   - dbus=1.13.18=hb2f20db_0
   - expat=2.2.10=he6710b0_2
@@ -33,10 +33,11 @@ dependencies:
   - ncurses=6.2=he6710b0_1
   - numpy=1.19.2=py39h89c1606_0
   - numpy-base=1.19.2=py39h2ae0177_0
-  - openssl=1.1.1h=h7b6447c_0
+  - openssl=1.1.1h=h14c3975_0
   - pcre=8.44=he6710b0_0
   - pip=21.0.1=py39h06a4308_0
   - pyqt=5.9.2=py39h2531618_6
+  - pyqtgraph=0.11.0=py_0
   - python=3.9.0=hdb3f193_2
   - qt=5.9.7=h5867ecd_1
   - readline=8.1=h27cfd23_0
