@@ -2,6 +2,6 @@
 message="auto-commit from $USER@$(hostname -s) on $(date)"
 GIT=`which git`
 REPO_DIR=~/
-${GIT} add --all .
+${GIT} add .
 ${GIT} commit -m "$message"
 ${GIT} push
